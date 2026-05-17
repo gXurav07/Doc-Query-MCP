@@ -8,14 +8,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from docquery_mcp.config import settings
-from docquery_mcp.ingest import ingest_documents
+from docquery_mcp.config import settings  # noqa: E402
+from docquery_mcp.ingest import ingest_documents  # noqa: E402
+
+
+def print_progress(message: str) -> None:
+    """Print progress immediately during index builds."""
+
+    print(f"[build-index] {message}", flush=True)
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line options for ingestion."""
+    """Parse command-line options for building the search index."""
 
-    parser = argparse.ArgumentParser(description="Index PDFs for DocQuery MCP.")
+    parser = argparse.ArgumentParser(description="Build the DocQuery search index from PDFs.")
     parser.add_argument(
         "--pdf-dir",
         type=Path,
@@ -37,16 +43,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Run ingestion and print a short summary."""
+    """Build the index and print a short summary."""
 
     args = parse_args()
     result = ingest_documents(
         pdf_dir=args.pdf_dir,
         index_dir=args.index_dir,
         reset_index=not args.keep_existing,
+        progress=print_progress,
     )
 
-    print("Ingestion complete")
+    print("Index build complete", flush=True)
     print(f"PDFs indexed: {result.pdf_count}")
     print(f"Pages indexed: {result.page_count}")
     print(f"Chunks indexed: {result.chunk_count}")

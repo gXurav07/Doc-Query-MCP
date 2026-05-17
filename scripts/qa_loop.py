@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from docquery_mcp.config import settings
+from docquery_mcp.config import settings  # noqa: E402
 
 
 def main() -> None:

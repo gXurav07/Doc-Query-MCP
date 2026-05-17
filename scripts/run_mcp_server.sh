@@ -4,4 +4,4 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-exec "$PROJECT_ROOT/dqmenv/bin/python" -m docquery_mcp.server
+exec "$PROJECT_ROOT/.venv/bin/python" -m docquery_mcp.server

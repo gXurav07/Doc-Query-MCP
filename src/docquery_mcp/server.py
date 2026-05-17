@@ -55,24 +55,62 @@ def serialize_result(result: QueryResult) -> dict[str, Any]:
     return asdict(result)
 
 
+ANSWERING_INSTRUCTIONS = (
+    "Answer using only the retrieved_context. Cite document_name and page_number. "
+    "If the context is insufficient or weakly relevant, make up to 2 additional "
+    "query_documents calls with rewritten/search-expanded questions before giving "
+    "the final answer. If the context is still insufficient, say the indexed "
+    "documents do not contain enough information."
+)
+
+
+def log_startup_progress(message: str) -> None:
+    """Write startup progress to stderr so stdout remains valid MCP transport."""
+
+    print(f"[docquery-mcp] {message}", file=sys.stderr, flush=True)
+
+
+def build_index_on_startup() -> None:
+    """Parse PDFs and rebuild the search index before serving MCP requests."""
+
+    log_startup_progress("Building document index before server startup...")
+    from docquery_mcp.ingest import ingest_documents
+
+    result = ingest_documents(reset_index=True, progress=log_startup_progress)
+    log_startup_progress(
+        "Index ready: "
+        f"{result.pdf_count} PDF(s), "
+        f"{result.page_count} page(s), "
+        f"{result.chunk_count} chunk(s)"
+    )
+
+
 @mcp.tool()
 def query_documents(question: str, top_k: int = settings.default_top_k) -> dict:
-    """Answer a natural language question using the indexed PDF documents.
+    """
+    Retrieve relevant PDF excerpts for answering a user question.
 
-    Args:
-        question: The user's natural language question.
-        top_k: Number of relevant chunks to retrieve from the document index.
+    The caller should synthesize the final answer using only the returned excerpts.
+    Every factual claim should cite the document_name and page_number from the
+    retrieved_context.
+    If the retrieved excerpts do not contain enough evidence, the caller should
+    say that the indexed documents do not provide enough information.
     """
 
     retrieved_chunks = get_retriever().retrieve(question=question, top_k=top_k)
     result = get_answerer().answer(question=question, retrieved_chunks=retrieved_chunks)
-    return serialize_result(result)
+    payload = serialize_result(result)
+    payload["retrieved_context"] = payload["sources"]
+    payload["answering_instructions"] = ANSWERING_INSTRUCTIONS
+    return payload
 
 
 def main() -> None:
     """Run the MCP server over stdio for local MCP clients."""
 
     try:
+        build_index_on_startup()
+        log_startup_progress("Starting MCP server over stdio...")
         mcp.run(transport="stdio")
     except KeyboardInterrupt:
         print("DocQuery MCP server stopped.", file=sys.stderr)
